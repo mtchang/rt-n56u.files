@@ -1,0 +1,133 @@
+#!/bin/sh
+
+#PATH=/opt/bin:/opt/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+daemon=/opt/bin/ushare
+#NAME=ushare
+#DESC="uShare UPnP A/V Media Server"
+pidfile=/var/run/ushare.pid
+conffile=/opt/etc/ushare.conf
+
+[ -r "$conffile" ] && . ${conffile}
+
+# abort if no executable exists
+[ -x $daemon ] || exit 0
+
+set -e
+
+do_start() {
+
+# abort if no shared directory is defined
+if [ -z "$USHARE_DIR" ]; then
+	echo -en "\v\t\033[1;37;41m [ Stop ]: No media directory specified. "
+	echo -e "Edit $conffile. \033[0m\v"
+	exit 1
+fi
+
+## Make sure an instance of daemon is not running
+if [ -n "`pidof ${daemon##*/}`" ] ; then
+   echo -e "\v\t\033[1;37;41m ${daemon##*/} is already running! \033[0m\v"
+   exit 1
+fi
+
+echo -en "\v\t\033[1;37;44m Starting ${daemon##*/} \033[0m"
+
+   if [ -f $pidfile ]; then
+      #echo "Warning : $pidfile still present. Unclean shutdown ?"
+#      kill -s 9 `cat $pidfile` 2>/dev/null
+      rm -f $pidfile 2>/dev/null
+   fi
+   #echo -n "Starting $DESC... "
+   $daemon -D -f ${conffile}
+   wait
+
+if [ $? -eq 0 ] ; then
+	echo -e "\033[1;37;44m [  OK  ] \033[0m\v"
+else
+	echo -e "\033[1;37;41m [ FAILED ] \033[0m\v"
+fi
+
+
+}
+
+#stop() {
+#   echo -n "Stopping $DESC... "
+#   if [ -f $pidfile ]; then
+#      kill -9 `cat $pidfile` 2>/dev/null
+#      rm -f $pidfile 2>/dev/null
+#   fi
+#   echo "done"
+#}
+
+
+do_stop()
+{
+## Make sure an instance of daemon is running
+if [ -z "`pidof ${daemon##*/}`" ] ; then
+	echo -e "\v\t\033[1;37;41m ${daemon##*/} is not running! \033[0m\v"
+	exit 1
+fi
+
+echo -en "\v\t\033[1;37;44m Stopping ${daemon##*/} \033[0m"
+
+#killall -15 ${daemon##*/} 2>/dev/null ; sleep 1
+
+for pid in `pidof ${daemon##*/}` ; do
+   kill -15 ${pid} 2>/dev/null
+   [ -z "`pidof ${daemon##*/}`" ] && break
+done
+
+## Wait max 20 seconds
+if [ -n "`pidof ${daemon##*/}`" ] ; then
+   echo -en "\t  Waiting" ; i=20 ; echo -ne "\r"
+
+   while [ -n "`pidof ${daemon##*/}`" ] && [ $i -ge 0 ] ; do 
+      echo -ne "\r[ $i ] " ; i=$(( $i - 1 )) ; sleep 1
+   done
+
+   echo -e "\n"
+fi
+
+if [ -n "`pidof ${daemon##*/}`" ] ; then
+   ## Kill the process unconditinally
+   kill -9 `pidof ${daemon}` 2>/dev/null
+   echo -e "\r\t\t\t\t\033[1;37;41m [ KILLED ] by timeout! \033[0m\r\n"
+   logger -t "${daemon##*/}" "Was killed by timeout!"
+else
+   echo -e "\033[1;37;44m [  OK  ] \033[0m\r\n"
+fi
+}
+
+
+do_restart()
+{
+	# Let's check if daemon is running
+	if [ -z "`pidof ${daemon##*/}`" ] ; then
+		echo -e "\v\t\033[1;37;41m $daemon is not running! \033[0m"
+		do_start
+	else
+		echo -e "\v\t\033[1;37;44m Trying to restart ${daemon##*/} \033[0m"
+		do_stop
+		sleep 1
+		do_start
+	fi
+}
+
+
+
+case "$1" in
+   start)
+      do_start
+      ;;
+   stop)
+      do_stop
+      ;;
+   restart)
+      do_restart
+      ;;
+   *)
+      echo -e "\v\t\033[1;37;44m Usage: $0 { start | stop | restart } \033[0m\v"
+      exit 1
+      ;;
+esac
+
+exit $?

@@ -1,0 +1,34 @@
+#!/bin/sh
+
+#########################################################################
+### Custom user script for post-update iptables.
+### This script is invoked when the internal firewall perform any action.
+###
+### First param can be:
+### ------------------
+###   start  (is called when Optware starts),
+###   stop   (is called before Optware stops),
+###   update (is called when internal firewall restarts).
+###
+### Include your custom rules to iptables below:
+
+case "$1" in
+		start|update)
+			# add iptables custom rules
+			echo "firewall started"
+			iptables -I INPUT -p tcp --destination-port 9091 -j ACCEPT
+			exit 0
+			;;
+		stop)
+			# delete iptables custom rules
+			iptables -D INPUT -p tcp --destination-port 9091 -j ACCEPT
+			echo "firewall stopped"
+			exit 0
+			;;
+		*)
+			echo "Usage: $0 {start|stop|update}"
+			exit 1
+			;;
+esac
+
+exit 2
