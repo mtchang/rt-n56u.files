@@ -1,0 +1,34 @@
+#!/bin/sh
+ 
+func_start()
+{
+        echo "Start DDNS services"
+        # insert your custom code below
+        inadyn --input_file /opt/etc/ddns/inadyn.conf  # start DDNS-service for server DDNS 1
+        inadyn --input_file /opt/etc/ddns/inadyn2.conf  # start DDNS-service for server DDNS 2
+}
+ 
+func_stop()
+{
+        echo "Stop DDNS services"
+        # insert your custom code below
+        killall -q inadyn
+}
+ 
+case "$1" in
+start)
+        func_start
+        ;;
+stop)
+        func_stop
+        ;;
+restart)
+        func_stop
+        func_start
+        ;;
+*)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac
+
