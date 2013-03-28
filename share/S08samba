@@ -1,0 +1,54 @@
+#!/bin/sh
+ 
+prgmname1="/sbin/nmbd"
+prgmname2="/sbin/smbd"
+ 
+# configfile=/full_path/configfile
+configfile="/opt/etc/samba/smb.conf"
+ 
+PATH=/opt/sbin:/opt/bin:/opt/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin 
+ 
+#location of pid-file
+nmbdpid="/var/run/nmbd.pid"
+smbdpid="/var/run/smbd.pid"
+ 
+start() {
+        # Code here to start the program
+        mkdir -p /etc/samba
+        cp /opt/etc/samba/secrets.tdb /etc/samba/
+        cp /opt/etc/samba/smbpasswd /etc/samba/
+        ${prgmname1} -D -s ${configfile}
+        logger -t nmbd "started $prgmname1, conf: $configfile"
+        ${prgmname2} -D -s ${configfile}
+        logger -t smbd "started $prgmname2, conf: $configfile"
+        return 0
+}
+ 
+stop() {
+        # Code here to stop the program and check it's dead
+        [ -f $nmbdpid ] && kill `cat $nmbdpid` && rm -f $nmbdpid
+        logger -t nmbd "service stopped"
+        sleep 1
+        [ -f $smbdpid ] && kill `cat $smbdpid` && rm -f $smbdpid
+        logger -t smbd "service stopped"
+        return 0
+}
+##########################start here##########################
+case "$1" in
+  start)
+        start
+        ;;
+  stop)
+        stop
+        ;;
+  restart)
+        logger -t Samba "nmbd & smbd restart"
+        stop
+        sleep 2
+        start
+        ;;
+  *)
+        echo $"Usage: $0 {start|stop|restart}"
+        exit 1
+esac
+exit 
